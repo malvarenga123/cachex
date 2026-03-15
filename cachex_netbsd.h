@@ -6,6 +6,7 @@
 
 #include "result.h"
 #include <array>
+#include <chrono>
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -28,8 +29,14 @@ void req_io_exec(int fd, scsireq_t &io, CommandResult &rv)
   ::clock_gettime(CLOCK_MONOTONIC, &ts2);
   timespecsub(&ts2, &ts1, &ts);
   rv.Valid = (io_rv == 0);
-  rv.ScsiStatus = io.retsts;
-  rv.Duration = (double)((ts.tv_sec * 100000) + (ts.tv_nsec / 10000)) / 100;
+  rv.ScsiStatusCode = io.retsts;
+  rv.Duration = (double)ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
+  // Shrink Data to the number of bytes actually transferred.
+  // datalen_used is set by the kernel to the actual transfer count.
+  if (rv.Valid && io.datalen_used <= io.datalen)
+  {
+    rv.Data.resize(io.datalen_used);
+  }
 }
 
 template <std::size_t CDBLength>
@@ -71,16 +78,17 @@ struct platform_netbsd
   using device_handle = int;
   static device_handle open_volume(const char *path)
   {
-    return ::open(path, O_RDWR | O_NONBLOCK | O_EXCL);
+    return ::open(path, O_RDWR | O_NONBLOCK);
   }
   static bool handle_is_valid(device_handle fd) { return fd != -1; }
   static void close_handle(device_handle fd) { ::close(fd); }
+  static device_handle invalid_handle() { return -1; }
   static std::uint32_t monotonic_clock()
   {
-    struct timespec ts;
-    ::clock_gettime(CLOCK_MONOTONIC, &ts);
-    return static_cast<std::uint32_t>((ts.tv_sec * 1000) +
-                                      (ts.tv_nsec / 1000000));
+    using namespace std::chrono;
+    return static_cast<std::uint32_t>(
+        duration_cast<milliseconds>(steady_clock::now().time_since_epoch())
+            .count());
   }
   static void set_critical_priority() {}
   static void set_normal_priority() {}
