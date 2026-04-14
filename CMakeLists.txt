@@ -28,3 +28,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Uncomment to enable static linking
     # target_link_options(cachex PRIVATE -static -static-libgcc -static-libstdc++)
 endif()
+
+enable_testing()
+add_executable(unit_tests tests/test_result.cpp)
+add_test(NAME result_test COMMAND unit_tests)
