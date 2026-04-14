@@ -7,8 +7,8 @@ LDFLAGS = -static -static-libgcc -static-libstdc++
 
 # Project files
 TARGET = cachex.exe
-SRCS = cachex.cpp
-HEADERS = cachex_win.h cachex_linux.h cachex_netbsd.h result.h scsi_status.h
+SRCS = src/main.cpp
+HEADERS = src/platform_win.h src/platform_linux.h src/platform_netbsd.h src/result.h src/scsi_status.h
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
