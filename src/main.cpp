@@ -5,11 +5,11 @@
  ******************************************************************************/
 
 #ifdef _WIN32
-#include "cachex_win.h"
+#include "platform_win.h"
 #elif defined(__linux__)
-#include "cachex_linux.h"
+#include "platform_linux.h"
 #elif defined(__NetBSD__)
-#include "cachex_netbsd.h"
+#include "platform_netbsd.h"
 #else
 #include "result.h"
 #include <array>
