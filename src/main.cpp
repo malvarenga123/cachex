@@ -1316,13 +1316,13 @@ int TestCacheLineSize_Wrap(sReadCommand &ReadCommand, long int TargetSector,
 int TestCacheLineSize_Stat(sReadCommand &ReadCommand, long int TargetSector,
                            int NbMeasures, int BurstSize)
 {
-  int NbPeakMeasures = 0;
+  size_t NbPeakMeasures = 0;
   double Maxdelay = 0.0;
   double Threshold = 0.0;
   std::vector<double> Measures;
   Measures.reserve(NbMeasures);
   int CurrentDelta = 0;
-  int MostFrequentDeltaIndex = 0;
+  size_t MostFrequentDeltaIndex = 0;
   int MaxDeltaFrequency = 0;
   std::vector<int> PeakMeasuresIndexes;
   PeakMeasuresIndexes.reserve(100);
@@ -1361,32 +1361,34 @@ int TestCacheLineSize_Stat(sReadCommand &ReadCommand, long int TargetSector,
     if (Measures[i] > Threshold)
       PeakMeasuresIndexes.push_back(i);
   }
-  NbPeakMeasures = static_cast<int>(PeakMeasuresIndexes.size());
+  NbPeakMeasures = PeakMeasuresIndexes.size();
   DEBUG << "\nmeas: " << NbPeakMeasures << "/" << NbMeasures << " above "
         << std::setprecision(2) << Threshold << " ms ("
         << ThresholdRatioMethod2() << ")";
 
   // calculate stats on differences and keep max
-  for (int i = 1; i < NbPeakMeasures; i++)
+  for (size_t i = 1; i < NbPeakMeasures; i++)
   {
     CurrentDelta = PeakMeasuresIndexes[i] - PeakMeasuresIndexes[i - 1];
     SUPERDEBUG << "\ndelta = " << CurrentDelta;
 
     // Search for this delta in the existing table.
     bool found = false;
-    for (int j = 0; j < static_cast<int>(DeltaArray.size()); j++)
+    size_t index = 0;
+    for (auto &deltaEntry : DeltaArray)
     {
-      if (DeltaArray[j].delta == CurrentDelta)
+      if (deltaEntry.delta == CurrentDelta)
       {
-        DeltaArray[j].frequency++;
-        if (DeltaArray[j].frequency > MaxDeltaFrequency)
+        deltaEntry.frequency++;
+        if (deltaEntry.frequency > MaxDeltaFrequency)
         {
-          MaxDeltaFrequency = DeltaArray[j].frequency;
-          MostFrequentDeltaIndex = j;
+          MaxDeltaFrequency = deltaEntry.frequency;
+          MostFrequentDeltaIndex = index;
         }
         found = true;
         break;
       }
+      index++;
     }
 
     // New delta — append it. Vector grows as needed, no data is dropped.
@@ -1399,19 +1401,19 @@ int TestCacheLineSize_Stat(sReadCommand &ReadCommand, long int TargetSector,
       if (1 > MaxDeltaFrequency)
       {
         MaxDeltaFrequency = 1;
-        MostFrequentDeltaIndex = static_cast<int>(DeltaArray.size()) - 1;
+        MostFrequentDeltaIndex = DeltaArray.size() - 1;
       }
     }
   }
 
   // find which sizes are multiples of others
-  for (int i = 0; i < static_cast<int>(DeltaArray.size()); i++)
+  for (auto &deltaI : DeltaArray)
   {
-    for (int j = 0; j < static_cast<int>(DeltaArray.size()); j++)
+    for (const auto &deltaJ : DeltaArray)
     {
-      if ((DeltaArray[j].delta % DeltaArray[i].delta == 0) && (i != j))
+      if ((deltaJ.delta % deltaI.delta == 0) && (&deltaI != &deltaJ))
       {
-        DeltaArray[i].divider++;
+        deltaI.divider++;
       }
     }
   }
@@ -1423,13 +1425,15 @@ int TestCacheLineSize_Stat(sReadCommand &ReadCommand, long int TargetSector,
   }
 
   std::cerr << "\nsizes: ";
-  for (int i = 0; i < static_cast<int>(DeltaArray.size()); i++)
+  size_t i = 0;
+  for (const auto &deltaEntry : DeltaArray)
   {
     if (i % 5 == 0)
       std::cerr << '\n';
-    std::cerr << " " << DeltaArray[i].delta << " ("
-              << (100 * DeltaArray[i].frequency / NbPeakMeasures)
-              << "%, div=" << DeltaArray[i].divider << ")";
+    std::cerr << " " << deltaEntry.delta << " ("
+              << (100 * deltaEntry.frequency / NbPeakMeasures)
+              << "%, div=" << deltaEntry.divider << ")";
+    i++;
   }
 
   std::cerr
