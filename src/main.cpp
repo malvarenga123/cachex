@@ -65,6 +65,20 @@ constexpr int DESCRIPTOR_BLOCK_1 = 8;
 constexpr std::uint8_t CACHING_MODE_PAGE = 0x08;
 constexpr std::uint8_t CD_DVD_CAPABILITIES_PAGE = 0x2A;
 
+constexpr std::uint8_t SCSI_OPCODE_REQUEST_SENSE = 0x03;
+constexpr std::uint8_t SCSI_OPCODE_INQUIRY = 0x12;
+constexpr std::uint8_t SCSI_OPCODE_READ_10 = 0x28;
+constexpr std::uint8_t SCSI_OPCODE_PREFETCH_10 = 0x34;
+constexpr std::uint8_t SCSI_OPCODE_SYNCHRONIZE_CACHE_10 = 0x35;
+constexpr std::uint8_t SCSI_OPCODE_MODE_SELECT_10 = 0x55;
+constexpr std::uint8_t SCSI_OPCODE_MODE_SENSE_10 = 0x5A;
+constexpr std::uint8_t SCSI_OPCODE_READ_12 = 0xA8;
+constexpr std::uint8_t SCSI_OPCODE_SET_CD_SPEED = 0xBB;
+constexpr std::uint8_t SCSI_OPCODE_READ_CD = 0xBE;
+constexpr std::uint8_t SCSI_OPCODE_READ_D4 = 0xD4;
+constexpr std::uint8_t SCSI_OPCODE_READ_D5 = 0xD5;
+constexpr std::uint8_t SCSI_OPCODE_READ_D8 = 0xD8;
+
 constexpr std::uint8_t RCD_BIT = 1;
 constexpr std::uint8_t RCD_READ_CACHE_ENABLED = 0;
 constexpr std::uint8_t RCD_READ_CACHE_DISABLED = 1;
@@ -89,8 +103,10 @@ struct DriveContext
   double ThresholdRatioMethod2 = 0.9;
   int CachedNonCachedSpeedFactor = 4;
   int MaxCacheSectors = 1000;
-  bool PlextorFlushValidated = false; // set when -p confirms Plextor FUA flush works
-  bool SyncCacheValidated    = false; // set when -q confirms SYNCHRONIZE CACHE works
+  bool PlextorFlushValidated =
+      false; // set when -p confirms Plextor FUA flush works
+  bool SyncCacheValidated =
+      false; // set when -q confirms SYNCHRONIZE CACHE works
 };
 
 // g_ctx holds all mutable per-drive state. The accessors below return
@@ -100,11 +116,14 @@ struct DriveContext
 DriveContext g_ctx;
 
 // Convenience accessors — inlined by any optimising compiler.
-inline platform::device_handle &hVolume()          { return g_ctx.handle; }
-inline int &NbBurstReadSectors()                   { return g_ctx.NbBurstReadSectors; }
-inline double &ThresholdRatioMethod2()             { return g_ctx.ThresholdRatioMethod2; }
-inline int &CachedNonCachedSpeedFactor()           { return g_ctx.CachedNonCachedSpeedFactor; }
-inline int &MaxCacheSectors()                      { return g_ctx.MaxCacheSectors; }
+inline platform::device_handle &hVolume() { return g_ctx.handle; }
+inline int &NbBurstReadSectors() { return g_ctx.NbBurstReadSectors; }
+inline double &ThresholdRatioMethod2() { return g_ctx.ThresholdRatioMethod2; }
+inline int &CachedNonCachedSpeedFactor()
+{
+  return g_ctx.CachedNonCachedSpeedFactor;
+}
+inline int &MaxCacheSectors() { return g_ctx.MaxCacheSectors; }
 
 struct debugstream
 {
@@ -131,7 +150,7 @@ namespace Command
 {
 bytearray<12> Read_A8h(long int TargetSector, int NbSectors, bool FUAbit)
 {
-  bytearray<12> rv = {0xA8,
+  bytearray<12> rv = {SCSI_OPCODE_READ_12,
                       static_cast<std::uint8_t>(FUAbit << 3),
                       static_cast<std::uint8_t>(TargetSector >> 24),
                       static_cast<std::uint8_t>(TargetSector >> 16),
@@ -148,7 +167,7 @@ bytearray<12> Read_A8h(long int TargetSector, int NbSectors, bool FUAbit)
 
 bytearray<10> Read_28h(long int TargetSector, int NbSectors, bool FUAbit)
 {
-  bytearray<10> rv = {0x28,
+  bytearray<10> rv = {SCSI_OPCODE_READ_10,
                       static_cast<std::uint8_t>(FUAbit << 3),
                       static_cast<std::uint8_t>(TargetSector >> 24),
                       static_cast<std::uint8_t>(TargetSector >> 16),
@@ -163,7 +182,7 @@ bytearray<10> Read_28h(long int TargetSector, int NbSectors, bool FUAbit)
 
 bytearray<12> Read_28h_12(long int TargetSector, int NbSectors, bool FUAbit)
 {
-  bytearray<12> rv = {0x28,
+  bytearray<12> rv = {SCSI_OPCODE_READ_10,
                       static_cast<std::uint8_t>(FUAbit << 3),
                       static_cast<std::uint8_t>(TargetSector >> 24),
                       static_cast<std::uint8_t>(TargetSector >> 16),
@@ -180,7 +199,7 @@ bytearray<12> Read_28h_12(long int TargetSector, int NbSectors, bool FUAbit)
 
 bytearray<12> Read_BEh(long int TargetSector, int NbSectors)
 {
-  bytearray<12> rv = {0xBE,
+  bytearray<12> rv = {SCSI_OPCODE_READ_CD,
                       0x00, // 0x04 = audio data only, 0x00 = any type
                       static_cast<std::uint8_t>(TargetSector >> 24),
                       static_cast<std::uint8_t>(TargetSector >> 16),
@@ -197,7 +216,7 @@ bytearray<12> Read_BEh(long int TargetSector, int NbSectors)
 
 bytearray<10> Read_D4h(long int TargetSector, int NbSectors, bool FUAbit)
 {
-  bytearray<10> rv = {0xD4,
+  bytearray<10> rv = {SCSI_OPCODE_READ_D4,
                       static_cast<std::uint8_t>(FUAbit << 3),
                       static_cast<std::uint8_t>(TargetSector >> 24),
                       static_cast<std::uint8_t>(TargetSector >> 16),
@@ -212,7 +231,7 @@ bytearray<10> Read_D4h(long int TargetSector, int NbSectors, bool FUAbit)
 
 bytearray<10> Read_D5h(long int TargetSector, int NbSectors, bool FUAbit)
 {
-  bytearray<10> rv = {0xD5,
+  bytearray<10> rv = {SCSI_OPCODE_READ_D5,
                       static_cast<std::uint8_t>(FUAbit << 3),
                       static_cast<std::uint8_t>(TargetSector >> 24),
                       static_cast<std::uint8_t>(TargetSector >> 16),
@@ -227,7 +246,7 @@ bytearray<10> Read_D5h(long int TargetSector, int NbSectors, bool FUAbit)
 
 bytearray<12> Read_D8h(long int TargetSector, int NbSectors, bool FUAbit)
 {
-  bytearray<12> rv = {0xD8,
+  bytearray<12> rv = {SCSI_OPCODE_READ_D8,
                       static_cast<std::uint8_t>(FUAbit << 3),
                       static_cast<std::uint8_t>(TargetSector >> 24),
                       static_cast<std::uint8_t>(TargetSector >> 16),
@@ -258,18 +277,23 @@ bytearray<12> PlextorFUAFlush(long int TargetSector)
 // the drive actually re-fetches from disc rather than serving stale data.
 bytearray<10> SynchronizeCache()
 {
-  bytearray<10> rv = {0x35, // SYNCHRONIZE CACHE (10)
-                      0,    // IMMED=0: wait until complete
-                      0, 0, 0, 0, // LBA = 0 (sync entire cache)
-                      0,
-                      0, 0, // number of blocks = 0 (sync entire cache)
-                      0};
+  bytearray<10> rv = {
+      SCSI_OPCODE_SYNCHRONIZE_CACHE_10, // SYNCHRONIZE CACHE (10)
+      0,                                // IMMED=0: wait until complete
+      0,
+      0,
+      0,
+      0, // LBA = 0 (sync entire cache)
+      0,
+      0,
+      0, // number of blocks = 0 (sync entire cache)
+      0};
   return rv;
 }
 
 bytearray<6> RequestSense(std::uint8_t AllocationLength)
 {
-  bytearray<6> rv = {3, // REQUEST SENSE
+  bytearray<6> rv = {SCSI_OPCODE_REQUEST_SENSE, // REQUEST SENSE
                      0,
                      0,
                      0,
@@ -281,7 +305,7 @@ bytearray<6> RequestSense(std::uint8_t AllocationLength)
 bytearray<10> ModeSense(unsigned char PageCode, unsigned char SubPageCode,
                         int size)
 {
-  bytearray<10> rv = {0x5A, // MODE SENSE(10)
+  bytearray<10> rv = {SCSI_OPCODE_MODE_SENSE_10, // MODE SENSE(10)
                       0,
                       PageCode,
                       SubPageCode,
@@ -289,36 +313,36 @@ bytearray<10> ModeSense(unsigned char PageCode, unsigned char SubPageCode,
                       0,
                       0,
                       uint8_t((size >> 8) & 0xFF), // size
-                      uint8_t((size)&0xFF),
+                      uint8_t((size) & 0xFF),
                       0};
   return rv;
 }
 
 bytearray<10> ModeSelect(std::uint16_t size)
 {
-  bytearray<10> rv = {0x55,          0x10, 0, 0, 0, 0, 0, uint8_t(size >> 8),
-                      uint8_t(size), 0};
+  bytearray<10> rv = {SCSI_OPCODE_MODE_SELECT_10, 0x10,          0, 0, 0, 0, 0,
+                      uint8_t(size >> 8),         uint8_t(size), 0};
   return rv;
 }
 
 bytearray<10> Prefetch(long int TargetSector, unsigned int NbSectors)
 {
-  bytearray<10> rv = {0x34, // PREFETCH
+  bytearray<10> rv = {SCSI_OPCODE_PREFETCH_10, // PREFETCH
                       0,
                       uint8_t((TargetSector >> 24) & 0xFF), // target sector
                       uint8_t((TargetSector >> 16) & 0xFF),
                       uint8_t((TargetSector >> 8) & 0xFF),
-                      uint8_t((TargetSector)&0xFF),
+                      uint8_t((TargetSector) & 0xFF),
                       0,
                       uint8_t((NbSectors >> 8) & 0xFF), // size
-                      uint8_t((NbSectors)&0xFF),
+                      uint8_t((NbSectors) & 0xFF),
                       0};
   return rv;
 }
 
 bytearray<6> Inquiry(std::uint8_t AllocationLength)
 {
-  bytearray<6> rv = {0x12, 0, 0, 0, AllocationLength, 0};
+  bytearray<6> rv = {SCSI_OPCODE_INQUIRY, 0, 0, 0, AllocationLength, 0};
   return rv;
 }
 
@@ -332,7 +356,7 @@ bytearray<12> SetCDSpeed(unsigned char ReadSpeedX, unsigned char WriteSpeedX)
     ReadSpeedkB = (ReadSpeedX * 176) + 2; // 1x CD = 176kB/s
   }
   unsigned int WriteSpeedkB = (WriteSpeedX * 176);
-  bytearray<12> rv = {0xBB, // SET CD SPEED
+  bytearray<12> rv = {SCSI_OPCODE_SET_CD_SPEED, // SET CD SPEED
                       0,
                       static_cast<std::uint8_t>(ReadSpeedkB >> 8),
                       static_cast<std::uint8_t>(ReadSpeedkB),
@@ -448,9 +472,9 @@ struct sReadCommand
   const char *const Name;
   CommandResult (*pFunc)(long int, int, bool);
   bool Supported;
-  bool FUAbitSupported;  // runtime value — may be cleared by -i probing
-  bool DeclaredFUA;      // immutable table value — restored by -r override
-  bool FUAValidated;     // true only if -i probe confirmed FUA works on this drive
+  bool FUAbitSupported; // runtime value — may be cleared by -i probing
+  bool DeclaredFUA;     // immutable table value — restored by -r override
+  bool FUAValidated; // true only if -i probe confirmed FUA works on this drive
   bool operator==(const char *name) const { return strcmp(Name, name) == 0; }
 };
 
@@ -485,9 +509,9 @@ sReadCommand &GetSupportedCommand()
 
 sReadCommand *GetFUASupportedCommand()
 {
-  auto it = std::find_if(std::begin(Commands), std::end(Commands),
-                         [](auto &&cmd)
-                         { return cmd.Supported && cmd.FUAbitSupported; });
+  auto it =
+      std::find_if(std::begin(Commands), std::end(Commands), [](auto &&cmd)
+                   { return cmd.Supported && cmd.FUAbitSupported; });
   return it == std::end(Commands) ? nullptr : &(*it);
 }
 
@@ -544,24 +568,22 @@ void LogSenseData()
     return;
 
   const std::uint8_t senseKey = sense.Data[2] & 0x0F;
-  const std::uint8_t asc      = sense.Data[12];
-  const std::uint8_t ascq     = sense.Data[13];
+  const std::uint8_t asc = sense.Data[12];
+  const std::uint8_t ascq = sense.Data[13];
 
   // Always print full sense info in debug mode
   DEBUG << "\n  sense: key=0x" << std::hex << static_cast<int>(senseKey)
-        << " ASC=0x"  << static_cast<int>(asc)
-        << " ASCQ=0x" << static_cast<int>(ascq) << std::dec;
+        << " ASC=0x" << static_cast<int>(asc) << " ASCQ=0x"
+        << static_cast<int>(ascq) << std::dec;
 
   // Print unconditionally only for genuine fault conditions.
   // Skip NO SENSE (0x0), RECOVERED ERROR (0x1), and ILLEGAL REQUEST (0x5).
-  const bool isFault = (senseKey != 0x0 &&
-                        senseKey != 0x1 &&
-                        senseKey != 0x5);
+  const bool isFault = (senseKey != 0x0 && senseKey != 0x1 && senseKey != 0x5);
   if (isFault)
   {
     std::cerr << " [sense key=0x" << std::hex << static_cast<int>(senseKey)
-              << " ASC=0x"  << static_cast<int>(asc)
-              << " ASCQ=0x" << static_cast<int>(ascq) << std::dec << "]";
+              << " ASC=0x" << static_cast<int>(asc) << " ASCQ=0x"
+              << static_cast<int>(ascq) << std::dec << "]";
   }
 }
 
@@ -574,9 +596,9 @@ CommandResult ModeSense(unsigned char PageCode, unsigned char SubPageCode,
 
 CommandResult ModeSelect(const std::vector<std::uint8_t> &data)
 {
-  return ExecBytesCommand(data.size(),
-                          Command::ModeSelect(static_cast<std::uint16_t>(data.size())),
-                          data);
+  return ExecBytesCommand(
+      data.size(), Command::ModeSelect(static_cast<std::uint16_t>(data.size())),
+      data);
 }
 
 CommandResult Prefetch(long int TargetSector, unsigned int NbSectors)
@@ -687,7 +709,8 @@ bool SetCacheRCDBit(bool RCDBitValue)
   if (result)
   {
     result.Data[DESCRIPTOR_BLOCK_1 + 2] =
-        (result.Data[DESCRIPTOR_BLOCK_1 + 2] & 0xFE) | static_cast<std::uint8_t>(RCDBitValue);
+        (result.Data[DESCRIPTOR_BLOCK_1 + 2] & 0xFE) |
+        static_cast<std::uint8_t>(RCDBitValue);
     result = ModeSelect(result.Data);
     if (result)
     {
@@ -805,7 +828,8 @@ int TestPlextorFUACommandWorks(sReadCommand &ReadCommand, long int TargetSector,
 
   DEBUG << "\ninfo: " << NbTests
         << " test(s), c/nc ratio: " << CachedNonCachedSpeedFactor()
-        << ", burst: " << NbBurstReadSectors() << ", max: " << MaxCacheSectors();
+        << ", burst: " << NbBurstReadSectors()
+        << ", max: " << MaxCacheSectors();
 
   for (int i = 0; i < NbTests; i++)
   {
@@ -878,7 +902,8 @@ int TestSyncCacheCommandWorks(sReadCommand &ReadCommand, long int TargetSector,
 
   DEBUG << "\ninfo: " << NbTests
         << " test(s), c/nc ratio: " << CachedNonCachedSpeedFactor()
-        << ", burst: " << NbBurstReadSectors() << ", max: " << MaxCacheSectors();
+        << ", burst: " << NbBurstReadSectors()
+        << ", max: " << MaxCacheSectors();
 
   for (int i = 0; i < NbTests; i++)
   {
@@ -955,8 +980,8 @@ double TimeMultipleReads(sReadCommand &cmd, long int TargetSector, int NbReads,
 // not only drives where the FUA bit on a data read forces a cache bypass.
 void TestCacheSpeedImpact(long int TargetSector, int NbReads)
 {
-  auto &readCmd  = GetSupportedCommand();
-  auto *fuaCmd   = GetFUASupportedCommand(); // may be null
+  auto &readCmd = GetSupportedCommand();
+  auto *fuaCmd = GetFUASupportedCommand(); // may be null
 
   // Determine best available flush function, in order of reliability:
   // 1. Plextor FUA flush — validated by -p tests
@@ -967,17 +992,17 @@ void TestCacheSpeedImpact(long int TargetSector, int NbReads)
 
   if (g_ctx.PlextorFlushValidated)
   {
-    flush     = [&]() { PlextorFUAFlush(TargetSector); };
+    flush = [&]() { PlextorFUAFlush(TargetSector); };
     flushName = "Plextor FUA flush";
   }
   else if (g_ctx.SyncCacheValidated)
   {
-    flush     = []() { SynchronizeCache(); };
+    flush = []() { SynchronizeCache(); };
     flushName = "SYNCHRONIZE CACHE";
   }
   else if (fuaCmd && fuaCmd->FUAValidated)
   {
-    flush     = [&]() { fuaCmd->pFunc(TargetSector, NbBurstReadSectors(), true); };
+    flush = [&]() { fuaCmd->pFunc(TargetSector, NbBurstReadSectors(), true); };
     flushName = fuaCmd->Name;
   }
   else
@@ -1008,8 +1033,8 @@ void TestCacheSpeedImpact(long int TargetSector, int NbReads)
   double coldMs = totalColdMs / NbReads;
 
   std::cerr << "\n[+] Read with " << readCmd.Name << ": "
-            << std::setprecision(2) << cachedMs << " ms (cached)"
-            << ", " << coldMs << " ms (post-flush)";
+            << std::setprecision(2) << cachedMs << " ms (cached)" << ", "
+            << coldMs << " ms (post-flush)";
 
   if (coldMs > cachedMs * 2.0)
   {
@@ -1018,7 +1043,8 @@ void TestCacheSpeedImpact(long int TargetSector, int NbReads)
   }
   else
   {
-    std::cerr << "\n    Cache impact unclear: post-flush timing similar to cached";
+    std::cerr
+        << "\n    Cache impact unclear: post-flush timing similar to cached";
   }
 }
 
@@ -1036,7 +1062,8 @@ int TestRCDBitWorks(sReadCommand &ReadCommand, long int TargetSector,
 
   DEBUG << "\ninfo: " << NbTests
         << " test(s), c/nc ratio: " << CachedNonCachedSpeedFactor()
-        << ", burst: " << NbBurstReadSectors() << ", max: " << MaxCacheSectors();
+        << ", burst: " << NbBurstReadSectors()
+        << ", max: " << MaxCacheSectors();
   for (int i = 0; i < NbTests; i++)
   {
     // enable caching
@@ -1068,8 +1095,8 @@ int TestRCDBitWorks(sReadCommand &ReadCommand, long int TargetSector,
     result = ReadCommand.pFunc(TargetSector, NbBurstReadSectors(),
                                false); // init read
     InitDelay = result.Duration;
-    result = ReadCommand.pFunc(TargetSector + NbBurstReadSectors(), NbBurstReadSectors(),
-                      false);
+    result = ReadCommand.pFunc(TargetSector + NbBurstReadSectors(),
+                               NbBurstReadSectors(), false);
     Delay2 = result.Duration;
     DEBUG << "\n2) " << TargetSector << " : " << std::setprecision(2)
           << InitDelay << " ms / " << (TargetSector + NbBurstReadSectors())
@@ -1115,7 +1142,8 @@ int TestCacheLineSize_Straight(sReadCommand &ReadCommand, long int TargetSector,
 
   DEBUG << "\ninfo: " << NbMeasures
         << " test(s), c/nc ratio: " << CachedNonCachedSpeedFactor()
-        << ", burst: " << NbBurstReadSectors() << ", max: " << MaxCacheSectors();
+        << ", burst: " << NbBurstReadSectors()
+        << ", max: " << MaxCacheSectors();
   for (int i = 0; i < NbMeasures; i++)
   {
     ClearCache();
@@ -1201,7 +1229,8 @@ int TestCacheLineSize_Wrap(sReadCommand &ReadCommand, long int TargetSector,
 
   DEBUG << "\ninfo: " << NbMeasures
         << " test(s), c/nc ratio: " << CachedNonCachedSpeedFactor()
-        << ", burst: " << NbBurstReadSectors() << ", max: " << MaxCacheSectors();
+        << ", burst: " << NbBurstReadSectors()
+        << ", max: " << MaxCacheSectors();
   for (int i = 0; i < NbMeasures; i++)
   {
     ClearCache();
@@ -1334,8 +1363,8 @@ int TestCacheLineSize_Stat(sReadCommand &ReadCommand, long int TargetSector,
   }
   NbPeakMeasures = static_cast<int>(PeakMeasuresIndexes.size());
   DEBUG << "\nmeas: " << NbPeakMeasures << "/" << NbMeasures << " above "
-        << std::setprecision(2) << Threshold << " ms (" << ThresholdRatioMethod2()
-        << ")";
+        << std::setprecision(2) << Threshold << " ms ("
+        << ThresholdRatioMethod2() << ")";
 
   // calculate stats on differences and keep max
   for (int i = 1; i < NbPeakMeasures; i++)
@@ -1711,8 +1740,8 @@ int main(int argc, char **argv)
   const char *UserReadCommand = nullptr;
 
   // --------------- setup ---------------------------
-  std::cerr
-      << "\nCacheExplorer 0.15-LLM - https://github.com/malvarenga123/cachex, based on";
+  std::cerr << "\nCacheExplorer 0.15-LLM - "
+               "https://github.com/malvarenga123/cachex, based on";
   std::cerr
       << "\nCacheExplorer 0.14 - https://github.com/xavery/cachex, based on";
   std::cerr << "\nCacheExplorer 0.9 - spath@cdfreaks.com\n";
@@ -1725,110 +1754,146 @@ int main(int argc, char **argv)
   }
   try
   {
-  for (int i = 1; i < argc; i++)
-  {
-    if (argv[i][0] == '-')
+    for (int i = 1; i < argc; i++)
     {
-      switch (argv[i][1])
+      if (argv[i][0] == '-')
       {
-      case 'c':
-        if (argv[i][2] == '2')
+        switch (argv[i][1])
         {
-          CacheMethod2 = true;
-        }
-        else if (argv[i][2] == '3')
+        case 'c':
+          if (argv[i][2] == '2')
+          {
+            CacheMethod2 = true;
+          }
+          else if (argv[i][2] == '3')
+          {
+            CacheMethod3 = true;
+          }
+          else if (argv[i][2] == '4')
+          {
+            CacheMethod4 = true;
+          }
+          else
+          {
+            CacheMethod1 = true; // default method
+          }
+          break;
+        case 'p':
+          TestPlextorFUA = true;
+          break;
+        case 'q':
+          TestSyncCache = true;
+          break;
+        case 'k':
+          TestRCDBit = true;
+          break;
+        case 'i':
+          ShowDriveInfos = true;
+          break;
+        case 'd':
+          DEBUG.Enabled = true;
+          break;
+        case 'l':
+          if (++i >= argc)
+          {
+            std::cerr << "\nError: -l requires an argument\n";
+            return -1;
+          }
+          NbSecsDriveSpin = std::stoi(argv[i]);
+          SpinDriveFlag = true;
+          break;
+        case 'b':
+          if (++i >= argc)
+          {
+            std::cerr << "\nError: -b requires an argument\n";
+            return -1;
+          }
+          NbBurstReadSectors() = std::stoi(argv[i]);
+          break;
+        case 'r':
+          if (++i >= argc)
+          {
+            std::cerr << "\nError: -r requires an argument\n";
+            return -1;
+          }
+          UserReadCommand = argv[i];
+          break;
+        case 's':
+          SetMaxDriveSpeed = true;
+          if (++i >= argc)
+          {
+            std::cerr << "\nError: -s requires an argument\n";
+            return -1;
+          }
+          MaxReadSpeed = std::stoi(argv[i]);
+          break;
+        case 'w':
+          CacheNbTest = true;
+          break;
+        case 'm':
+          if (++i >= argc)
+          {
+            std::cerr << "\nError: -m requires an argument\n";
+            return -1;
+          }
+          MaxCacheSectors() = std::stoi(argv[i]);
+          break;
+        case 'y':
+          if (++i >= argc)
+          {
+            std::cerr << "\nError: -y requires an argument\n";
+            return -1;
+          }
+          NbSectorsMethod2 = std::stoi(argv[i]);
+          break;
+        case 't':
         {
-          CacheMethod3 = true;
+          if (++i >= argc)
+          {
+            std::cerr << "\nError: -t requires an argument\n";
+            return -1;
+          }
+          int v = std::stoi(argv[i]);
+          ThresholdRatioMethod2() = v / 100.0;
+          break;
         }
-        else if (argv[i][2] == '4')
-        {
-          CacheMethod4 = true;
-        }
-        else
-        {
-          CacheMethod1 = true; // default method
-        }
-        break;
-      case 'p':
-        TestPlextorFUA = true;
-        break;
-      case 'q':
-        TestSyncCache = true;
-        break;
-      case 'k':
-        TestRCDBit = true;
-        break;
-      case 'i':
-        ShowDriveInfos = true;
-        break;
-      case 'd':
-        DEBUG.Enabled = true;
-        break;
-      case 'l':
-        if (++i >= argc) { std::cerr << "\nError: -l requires an argument\n"; return -1; }
-        NbSecsDriveSpin = std::stoi(argv[i]);
-        SpinDriveFlag = true;
-        break;
-      case 'b':
-        if (++i >= argc) { std::cerr << "\nError: -b requires an argument\n"; return -1; }
-        NbBurstReadSectors() = std::stoi(argv[i]);
-        break;
-      case 'r':
-        if (++i >= argc) { std::cerr << "\nError: -r requires an argument\n"; return -1; }
-        UserReadCommand = argv[i];
-        break;
-      case 's':
-        SetMaxDriveSpeed = true;
-        if (++i >= argc) { std::cerr << "\nError: -s requires an argument\n"; return -1; }
-        MaxReadSpeed = std::stoi(argv[i]);
-        break;
-      case 'w':
-        CacheNbTest = true;
-        break;
-      case 'm':
-        if (++i >= argc) { std::cerr << "\nError: -m requires an argument\n"; return -1; }
-        MaxCacheSectors() = std::stoi(argv[i]);
-        break;
-      case 'y':
-        if (++i >= argc) { std::cerr << "\nError: -y requires an argument\n"; return -1; }
-        NbSectorsMethod2 = std::stoi(argv[i]);
-        break;
-      case 't':
-      {
-        if (++i >= argc) { std::cerr << "\nError: -t requires an argument\n"; return -1; }
-        int v = std::stoi(argv[i]);
-        ThresholdRatioMethod2() = v / 100.0;
-        break;
-      }
-      case 'x':
-        if (++i >= argc) { std::cerr << "\nError: -x requires an argument\n"; return -1; }
-        CachedNonCachedSpeedFactor() = std::stoi(argv[i]);
-        break;
-      case 'n':
-        if (++i >= argc) { std::cerr << "\nError: -n requires an argument\n"; return -1; }
-        Nbtests = std::stoi(argv[i]);
-        break;
-      case 'z':
-        TestSpeedImpact = true;
-        break;
+        case 'x':
+          if (++i >= argc)
+          {
+            std::cerr << "\nError: -x requires an argument\n";
+            return -1;
+          }
+          CachedNonCachedSpeedFactor() = std::stoi(argv[i]);
+          break;
+        case 'n':
+          if (++i >= argc)
+          {
+            std::cerr << "\nError: -n requires an argument\n";
+            return -1;
+          }
+          Nbtests = std::stoi(argv[i]);
+          break;
+        case 'z':
+          TestSpeedImpact = true;
+          break;
 
-        // non documented options
-      case '/':
-        PFUAInvalidationSizeTest = true;
-        break;
-      case '.':
-        SUPERDEBUG.Enabled = true;
-        break;
-      default:
-        PrintUsage();
-        return (-1);
+          // non documented options
+        case '/':
+          PFUAInvalidationSizeTest = true;
+          break;
+        case '.':
+          SUPERDEBUG.Enabled = true;
+          break;
+        default:
+          PrintUsage();
+          return (-1);
+        }
+      }
+      else // must be drive then
+      {
+        DrivePath = argv[i];
       }
     }
-    else // must be drive then
-    {
-      DrivePath = argv[i];
-    }
-  }
   }
   catch (const std::invalid_argument &)
   {
@@ -1852,8 +1917,8 @@ int main(int argc, char **argv)
 
   // Initialise DriveContext from parsed command-line values.
   // All functions access these through the inline accessors above.
-  g_ctx.NbBurstReadSectors    = NbBurstReadSectors();
-  g_ctx.MaxCacheSectors       = MaxCacheSectors();
+  g_ctx.NbBurstReadSectors = NbBurstReadSectors();
+  g_ctx.MaxCacheSectors = MaxCacheSectors();
   g_ctx.ThresholdRatioMethod2 = ThresholdRatioMethod2();
   g_ctx.CachedNonCachedSpeedFactor = CachedNonCachedSpeedFactor();
 
@@ -1911,7 +1976,8 @@ int main(int argc, char **argv)
 
     if (chosen_cmd->pFunc(10000, 1, false))
     {
-      for (auto &&cmd : Commands) cmd.Supported = false;
+      for (auto &&cmd : Commands)
+        cmd.Supported = false;
       chosen_cmd->Supported = true;
       // Restore FUAbitSupported to its declared value. Running -i before -r
       // can clear FUAbitSupported if the drive rejected a FUA probe read,
@@ -1961,7 +2027,8 @@ int main(int argc, char **argv)
             {
               Nbtests = (Nbtests == 0) ? 5 : Nbtests;
               std::cerr << "\n[+] Plextor flush tests: ";
-              int plexResult = TestPlextorFUACommandWorksWrapper(15000, Nbtests);
+              int plexResult =
+                  TestPlextorFUACommandWorksWrapper(15000, Nbtests);
               std::cerr << plexResult << '/' << Nbtests;
               if (plexResult == 0)
               {
