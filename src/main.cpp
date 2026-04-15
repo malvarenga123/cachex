@@ -1373,27 +1373,22 @@ int TestCacheLineSize_Stat(sReadCommand &ReadCommand, long int TargetSector,
     SUPERDEBUG << "\ndelta = " << CurrentDelta;
 
     // Search for this delta in the existing table.
-    bool found = false;
-    size_t index = 0;
-    for (auto &deltaEntry : DeltaArray)
-    {
-      if (deltaEntry.delta == CurrentDelta)
-      {
-        deltaEntry.frequency++;
-        if (deltaEntry.frequency > MaxDeltaFrequency)
-        {
-          MaxDeltaFrequency = deltaEntry.frequency;
-          MostFrequentDeltaIndex = index;
-        }
-        found = true;
-        break;
-      }
-      index++;
-    }
+    auto it = std::find_if(DeltaArray.begin(), DeltaArray.end(),
+                           [CurrentDelta](const sDelta &entry)
+                           { return entry.delta == CurrentDelta; });
 
-    // New delta — append it. Vector grows as needed, no data is dropped.
-    if (!found)
+    if (it != DeltaArray.end())
     {
+      it->frequency++;
+      if (it->frequency > MaxDeltaFrequency)
+      {
+        MaxDeltaFrequency = it->frequency;
+        MostFrequentDeltaIndex = std::distance(DeltaArray.begin(), it);
+      }
+    }
+    else
+    {
+      // New delta — append it. Vector grows as needed, no data is dropped.
       sDelta entry;
       entry.delta = CurrentDelta;
       entry.frequency = 1;
