@@ -630,6 +630,11 @@ bool PrintDriveInfo()
   auto result =
       ExecBytesCommand(AllocationLength, Command::Inquiry(AllocationLength));
 
+  if (!result || result.Data.size() < 36)
+  {
+    return false;
+  }
+
   // print info
   PrintIDString(&result.Data[8], 8);       // vendor Id
   PrintIDString(&result.Data[0x10], 0x10); // product Id
@@ -675,7 +680,7 @@ CommandResult SetDriveSpeed(unsigned char ReadSpeedX, unsigned char WriteSpeedX)
 void ShowCacheValues()
 {
   auto result = ModeSense(CD_DVD_CAPABILITIES_PAGE, 0, 32);
-  if (result)
+  if (result && result.Data.size() >= DESCRIPTOR_BLOCK_1 + 14)
   {
     std::cerr << "\n[+] Buffer size: "
               << ((result.Data[DESCRIPTOR_BLOCK_1 + 12] << 8) |
@@ -688,7 +693,7 @@ void ShowCacheValues()
     LogSenseData();
   }
   result = ModeSense(CACHING_MODE_PAGE, 0, 20);
-  if (result)
+  if (result && result.Data.size() >= DESCRIPTOR_BLOCK_1 + 3)
   {
     std::cerr << ", read cache is "
               << ((result.Data[DESCRIPTOR_BLOCK_1 + 2] & RCD_BIT) ? "disabled"
@@ -706,7 +711,7 @@ bool SetCacheRCDBit(bool RCDBitValue)
   bool retval = false;
 
   auto result = ModeSense(CACHING_MODE_PAGE, 0, 20);
-  if (result)
+  if (result && result.Data.size() >= DESCRIPTOR_BLOCK_1 + 3)
   {
     result.Data[DESCRIPTOR_BLOCK_1 + 2] =
         (result.Data[DESCRIPTOR_BLOCK_1 + 2] & 0xFE) |
@@ -715,7 +720,7 @@ bool SetCacheRCDBit(bool RCDBitValue)
     if (result)
     {
       result = ModeSense(CACHING_MODE_PAGE, 0, 20);
-      if (result &&
+      if (result && result.Data.size() >= DESCRIPTOR_BLOCK_1 + 3 &&
           (result.Data[DESCRIPTOR_BLOCK_1 + 2] & RCD_BIT) == RCDBitValue)
       {
         retval = true;
